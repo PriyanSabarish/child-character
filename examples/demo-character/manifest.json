@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "rig_id": "demo-character-001",
+  "canvas": {
+    "width": 512,
+    "height": 512
+  },
+  "base": "base.png",
+  "slots": {
+    "mouth": {
+      "x": 256,
+      "y": 340,
+      "anchor": "top-center"
+    },
+    "eyes": {
+      "x": 256,
+      "y": 230,
+      "anchor": "center"
+    }
+  },
+  "sprites": {
+    "mouth": {
+      "closed": "mouth_closed.png",
+      "small": "mouth_small.png",
+      "medium": "mouth_medium.png",
+      "wide": "mouth_wide.png"
+    },
+    "eyes": {
+      "open": "eyes_open.png",
+      "blink": "eyes_blink.png"
+    }
+  },
+  "idle": {
+    "sway_amplitude_px": 4,
+    "sway_period_ms": 3500,
+    "blink_interval_ms": [
+      2500,
+      4500
+    ],
+    "blink_duration_ms": 120
+  }
+}
