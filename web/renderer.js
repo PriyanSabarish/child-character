@@ -1,86 +1,86 @@
 import { loadManifest } from "./manifest.js";
+import { loadImage, drawSlot, setupCanvas, randomRange } from "./utils.js";
 
-
-function loadImage(src){
-    return new Promise((resolve, reject) => {
-        const  img = new Image();
-        img.crossOrigin = "annonymus";
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
-        img.src = src;
-
-
-    })
-}
-
-
-
-function drawSlot( ctx, slot, sprite){
-    if (!slot || ! sprite) return;
-    let drawX = slot.x;
-    let drawY = slot.y;
-    
-    if (slot.anchor == "center"){
-        drawX -= sprite.width / 2;
-        drawY -= sprite.height / 2;
-    }else if (slot.anchor == "top-center"){
-        drawX -= sprite.width / 2;
-    // drawY stays pinned to slot.y so height changes expand downward
-    }
-
-    ctx.drawImage(sprite, drawX, drawY);
-}
-
-
-
-function setupCanvas(canvas, logicalWidth, logicalHeight) {
-  const dpr = window.devicePixelRatio || 1;
-
-  // Scale internal pixel buffer
-  canvas.width = logicalWidth * dpr;
-  canvas.height = logicalHeight * dpr;
-
-  // Keep display layout size fixed
-  canvas.style.width = `${logicalWidth}px`;
-  canvas.style.height = `${logicalHeight}px`;
-
-  const ctx = canvas.getContext("2d");
-  ctx.scale(dpr, dpr);
-  return ctx;
-}
-
+const MANIFEST_PATH = "../examples/demo-character/manifest.json";
+const ASSET_BASE = "../examples/demo-character/";
 
 async function start() {
   const statusEl = document.getElementById("status");
   const canvas = document.getElementById("characterCanvas");
 
-  const manifestPath = "../examples/demo-character/manifest.json";
-  const assetBase = "../examples/demo-character/";
-
   try {
-    statusEl.textContent = "Loading manifest and assets...";
-    const manifest = await loadManifest(manifestPath);
+    statusEl.textContent = "Loading...";
+    const manifest = await loadManifest(MANIFEST_PATH);
 
-    // Preload base and default static sprites
-    const baseImg = await loadImage(assetBase + manifest.base);
-    const eyesOpenImg = await loadImage(assetBase + manifest.sprites.eyes.open);
-    const mouthMediumImg = await loadImage(assetBase + manifest.sprites.mouth.medium);
+    // Preload sprites in parallel
+    const [base, eyesOpen, eyesBlink, mouthClosed, mouthSmall, mouthMed, mouthWide] = await Promise.all([
+      loadImage(ASSET_BASE + manifest.base),
+      loadImage(ASSET_BASE + manifest.sprites.eyes.open),
+      loadImage(ASSET_BASE + manifest.sprites.eyes.blink),
+      loadImage(ASSET_BASE + manifest.sprites.mouth.closed),
+      loadImage(ASSET_BASE + manifest.sprites.mouth.small),
+      loadImage(ASSET_BASE + manifest.sprites.mouth.medium),
+      loadImage(ASSET_BASE + manifest.sprites.mouth.wide),
+    ]);
 
-    // Initialize high-DPI canvas context
+    const sprites = {
+      base,
+      eyes: { open: eyesOpen, blink: eyesBlink },
+      mouth: { closed: mouthClosed, small: mouthSmall, medium: mouthMed, wide: mouthWide },
+    };
+
     const ctx = setupCanvas(canvas, manifest.canvas.width, manifest.canvas.height);
+    statusEl.textContent = `Rig: ${manifest.rig_id}`;
 
-    // Layer 1: Base Face
-    ctx.drawImage(baseImg, 0, 0);
+    // Config with fallbacks
+    const idle = manifest.idle || {};
+    const swayPeriod = idle.sway_period_s ?? 3.0;
+    const swayAmp = idle.sway_amplitude_px ?? 4.0;
+    const minBlink = idle.blink_interval_min_s ?? 3.0;
+    const maxBlink = idle.blink_interval_max_s ?? 5.0;
+    const blinkDuration = idle.blink_duration_s ?? 0.15;
 
-    // Layer 2: Eyes Slot
-    drawSlot(ctx, manifest.slots.eyes, eyesOpenImg);
+    let lastTime = performance.now();
+    let elapsed = 0;
+    let isBlinking = false;
+    let blinkTimer = 0;
+    let nextBlink = randomRange(minBlink, maxBlink);
 
-    // Layer 3: Mouth Slot
-    drawSlot(ctx, manifest.slots.mouth, mouthMediumImg);
+    function loop(currentTime) {
+      const dt = (currentTime - lastTime) / 1000;
+      lastTime = currentTime;
+      elapsed += dt;
 
-    statusEl.textContent = `Rig loaded: ${manifest.rig_id}`;
+      // Eye blink timer
+      blinkTimer += dt;
+      if (!isBlinking && blinkTimer >= nextBlink) {
+        isBlinking = true;
+        blinkTimer = 0;
+      } else if (isBlinking && blinkTimer >= blinkDuration) {
+        isBlinking = false;
+        blinkTimer = 0;
+        nextBlink = randomRange(minBlink, maxBlink);
+      }
+
+      // Vertical floating sway
+      const swayY = Math.sin((elapsed * 2 * Math.PI) / swayPeriod) * swayAmp;
+
+      ctx.clearRect(0, 0, manifest.canvas.width, manifest.canvas.height);
+      ctx.save();
+      ctx.translate(0, swayY);
+
+      // Base -> Eyes -> Mouth
+      ctx.drawImage(sprites.base, 0, 0);
+      drawSlot(ctx, manifest.slots.eyes, isBlinking ? sprites.eyes.blink : sprites.eyes.open);
+      drawSlot(ctx, manifest.slots.mouth, sprites.mouth.closed);
+
+      ctx.restore();
+      requestAnimationFrame(loop);
+    }
+
+    requestAnimationFrame(loop);
   } catch (err) {
-    console.error(err);
+    console.error("Rig failed to initialize:", err);
     statusEl.textContent = `Error: ${err.message}`;
     statusEl.style.color = "#ff6b6b";
   }
