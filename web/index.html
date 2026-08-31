@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Talking Character Demo</title>
+  <title>Child Character Companion</title>
   <style>
     * {
       box-sizing: border-box;
@@ -11,32 +11,57 @@
       padding: 0;
     }
     body {
-      background-color: #121212;
-      color: #e0e0e0;
-      font-family: system-ui, -apple-system, sans-serif;
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      min-height: 100vh;
+      background-color: #121212;
+      color: #f0f0f0;
+      font-family: system-ui, -apple-system, sans-serif;
       gap: 16px;
     }
     canvas {
       background-color: #1e1e1e;
       border-radius: 16px;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    button:active {
+      transform: scale(0.98);
     }
     .status {
       font-size: 14px;
-      color: #9e9e9e;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <h1>Step 1: Static Preview</h1>
+  <h1>Child Character Companion</h1>
   <canvas id="characterCanvas"></canvas>
-  <p id="status" class="status">Loading manifest...</p>
+  <div class="controls">
+    <button id="testAudioBtn">Test Speech Audio</button>
+  </div>
+  <p id="status" class="status">Loading...</p>
 
-  <script type="module" src="./renderer.js"></script>
+  <script type="module" src="renderer.js"></script>
 </body>
 </html>

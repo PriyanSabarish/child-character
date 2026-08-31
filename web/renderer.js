@@ -1,5 +1,6 @@
 import { loadManifest } from "./manifest.js";
 import { loadImage, drawSlot, setupCanvas, randomRange } from "./utils.js";
+import { LipSyncAnalyzer } from "./audio.js";
 
 const MANIFEST_PATH = "../examples/demo-character/manifest.json";
 const ASSET_BASE = "../examples/demo-character/";
@@ -7,12 +8,12 @@ const ASSET_BASE = "../examples/demo-character/";
 async function start() {
   const statusEl = document.getElementById("status");
   const canvas = document.getElementById("characterCanvas");
+  const testBtn = document.getElementById("testAudioBtn");
 
   try {
-    statusEl.textContent = "Loading...";
+    statusEl.textContent = "Loading assets...";
     const manifest = await loadManifest(MANIFEST_PATH);
 
-    // Preload sprites in parallel
     const [base, eyesOpen, eyesBlink, mouthClosed, mouthSmall, mouthMed, mouthWide] = await Promise.all([
       loadImage(ASSET_BASE + manifest.base),
       loadImage(ASSET_BASE + manifest.sprites.eyes.open),
@@ -26,13 +27,24 @@ async function start() {
     const sprites = {
       base,
       eyes: { open: eyesOpen, blink: eyesBlink },
-      mouth: { closed: mouthClosed, small: mouthSmall, medium: mouthMed, wide: mouthWide },
+      mouth: {
+        closed: mouthClosed,
+        small: mouthSmall,
+        medium: mouthMed,
+        wide: mouthWide,
+      },
     };
 
     const ctx = setupCanvas(canvas, manifest.canvas.width, manifest.canvas.height);
-    statusEl.textContent = `Rig: ${manifest.rig_id}`;
+    const audio = new LipSyncAnalyzer();
 
-    // Config with fallbacks
+    testBtn.addEventListener("click", () => {
+      audio.playSyntheticPuffSequence();
+    });
+
+    statusEl.textContent = `Rig active: ${manifest.rig_id}`;
+
+    // Config defaults
     const idle = manifest.idle || {};
     const swayPeriod = idle.sway_period_s ?? 3.0;
     const swayAmp = idle.sway_amplitude_px ?? 4.0;
@@ -51,7 +63,7 @@ async function start() {
       lastTime = currentTime;
       elapsed += dt;
 
-      // Eye blink timer
+      // Procedural blink state
       blinkTimer += dt;
       if (!isBlinking && blinkTimer >= nextBlink) {
         isBlinking = true;
@@ -65,14 +77,21 @@ async function start() {
       // Vertical floating sway
       const swayY = Math.sin((elapsed * 2 * Math.PI) / swayPeriod) * swayAmp;
 
+      // Audio-driven mouth state
+      const mouthState = audio.updateMouthState(currentTime);
+
       ctx.clearRect(0, 0, manifest.canvas.width, manifest.canvas.height);
       ctx.save();
       ctx.translate(0, swayY);
 
-      // Base -> Eyes -> Mouth
+      // Layer 1: Base Head
       ctx.drawImage(sprites.base, 0, 0);
+
+      // Layer 2: Eyes (Open / Blink)
       drawSlot(ctx, manifest.slots.eyes, isBlinking ? sprites.eyes.blink : sprites.eyes.open);
-      drawSlot(ctx, manifest.slots.mouth, sprites.mouth.closed);
+
+      // Layer 3: Mouth (Closed / Small / Medium / Wide via Audio)
+      drawSlot(ctx, manifest.slots.mouth, sprites.mouth[mouthState]);
 
       ctx.restore();
       requestAnimationFrame(loop);
@@ -80,7 +99,7 @@ async function start() {
 
     requestAnimationFrame(loop);
   } catch (err) {
-    console.error("Rig failed to initialize:", err);
+    console.error("Renderer error:", err);
     statusEl.textContent = `Error: ${err.message}`;
     statusEl.style.color = "#ff6b6b";
   }
