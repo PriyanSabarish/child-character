@@ -4,11 +4,14 @@ import { LipSyncAnalyzer } from "./audio.js";
 
 const MANIFEST_PATH = "../examples/demo-character/manifest.json";
 const ASSET_BASE = "../examples/demo-character/";
+const SPEECH_AUDIO_PATH = "../examples/demo-character/speech.wav";
+
 
 async function start() {
   const statusEl = document.getElementById("status");
   const canvas = document.getElementById("characterCanvas");
   const testBtn = document.getElementById("testAudioBtn");
+  const playSpeechBtn = document.getElementById("playSpeechBtn");
 
   try {
     statusEl.textContent = "Loading assets...";
@@ -40,6 +43,13 @@ async function start() {
 
     testBtn.addEventListener("click", () => {
       audio.playSyntheticPuffSequence();
+    });
+
+    playSpeechBtn.addEventListener("click", () => {
+      audio.playAudio(SPEECH_AUDIO_PATH).catch((err) => {
+        console.error("Audio playback error:", err);
+        statusEl.textContent = `Audio Error: ${err.message}`;
+      });
     });
 
     statusEl.textContent = `Rig active: ${manifest.rig_id}`;
@@ -86,10 +96,8 @@ async function start() {
 
       // Layer 1: Base Head
       ctx.drawImage(sprites.base, 0, 0);
-
       // Layer 2: Eyes (Open / Blink)
       drawSlot(ctx, manifest.slots.eyes, isBlinking ? sprites.eyes.blink : sprites.eyes.open);
-
       // Layer 3: Mouth (Closed / Small / Medium / Wide via Audio)
       drawSlot(ctx, manifest.slots.mouth, sprites.mouth[mouthState]);
 
